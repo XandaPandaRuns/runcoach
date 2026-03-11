@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RunCoach AI</title>
+
+<style>
+:root{
+--bg:#0b0f1a;
+--card:#121a2b;
+--accent:#3b82f6;
+--accent2:#22c55e;
+--accent3:#f59e0b;
+--danger:#ef4444;
+--text:#e5e7eb;
+--muted:#9ca3af;
+}
+
+body{
+font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+background:var(--bg);
+color:var(--text);
+margin:0;
+}
+
+.header{
+padding:18px;
+font-size:22px;
+font-weight:600;
+letter-spacing:.3px;
+}
+
+.container{
+padding:16px;
+display:grid;
+gap:14px;
+margin-bottom:90px;
+}
+
+.card{
+background:var(--card);
+border-radius:16px;
+padding:16px;
+box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+
+.big{font-size:26px;font-weight:600}
+.small{font-size:13px;color:var(--muted)}
+.title{font-size:13px;color:var(--muted)}
+
+input,select{
+width:100%;
+padding:10px;
+border-radius:10px;
+border:none;
+margin-top:6px;
+background:#1f2937;
+color:white;
+}
+
+.button{
+background:var(--accent);
+padding:12px;
+border-radius:12px;
+text-align:center;
+margin-top:12px;
+font-weight:600;
+cursor:pointer;
+}
+
+.secondary{background:#1f2937}
+
+.progress{height:10px;background:#1f2937;border-radius:8px;margin-top:10px;overflow:hidden}
+.progress-inner{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0}
+
+.statGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+.stat{background:#1f2937;padding:10px;border-radius:10px;text-align:center}
+
+.chart{height:120px;background:#1f2937;border-radius:10px;margin-top:10px;display:flex;align-items:flex-end;gap:4px;padding:6px}
+.bar{flex:1;background:var(--accent2);border-radius:4px}
+
+.run{display:flex;justify-content:space-between;margin-top:8px}
+
+.hidden{display:none}
+
+.nav{
+position:fixed;
+bottom:0;
+width:100%;
+background:#020617;
+display:flex;
+justify-content:space-around;
+padding:12px 0;
+border-top:1px solid #1f2937
+}
+
+.nav div{font-size:13px;color:var(--muted);cursor:pointer}
+
+.warning{color:var(--accent3)}
+.danger{color:var(--danger)}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">🏃 RunCoach AI</div>
+
+<!-- SETUP -->
+<div id="setup" class="container">
+<div class="card">
+<div class="big">Create Smart Training Plan</div>
+<div class="small">AI adaptive running coach</div>
+
+<label>Goal Distance</label>
+<select id="goalDistance">
+<option>5K</option>
+<option>10K</option>
+<option selected>Half Marathon</option>
+<option>Marathon</option>
+</select>
+
+<label>Goal Time</label>
+<input id="goalTime" placeholder="1:35:00">
+
+<label>Race Date</label>
+<input id="raceDate" type="date">
+
+<label>Current Weekly Mileage</label>
+<input id="weeklyMileage" type="number">
+
+<label>Longest Run</label>
+<input id="longRun" type="number">
+
+<label>Easy Pace</label>
+<input id="easyPace" placeholder="5:30 /km">
+
+<label>Run Days / Week</label>
+<select id="daysRun">
+<option>3</option>
+<option>4</option>
+<option selected>5</option>
+<option>6</option>
+</select>
+
+<div class="button" onclick="saveSetup()">Generate AI Plan</div>
+</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="container hidden">
+
+<div class="card">
+<div class="title">Goal</div>
+<div id="goalDisplay" class="big"></div>
+<div id="raceCountdown" class="small"></div>
+</div>
+
+<div class="card">
+<div class="title">Weekly Mileage</div>
+<div id="weeklyText" class="big"></div>
+<div class="progress"><div id="progressBar" class="progress-inner"></div></div>
+</div>
+
+<div class="card">
+<div class="title">Today's Workout</div>
+<div id="todayWorkout" class="big"></div>
+<div id="todayDesc" class="small"></div>
+<div class="button" onclick="logRun()">Log Run</div>
+</div>
+
+<div class="card">
+<div class="title">Training Status</div>
+<div class="statGrid">
+<div class="stat"><div>Fitness</div><div id="fitness">40</div></div>
+<div class="stat"><div>Fatigue</div><div id="fatigue">45</div></div>
+<div class="stat"><div>Form</div><div id="form">-5</div></div>
+</div>
+</div>
+
+<div class="card">
+<div class="title">Race Prediction</div>
+<div id="prediction" class="big">--</div>
+<div class="small">Updated from latest runs</div>
+</div>
+
+<div class="card">
+<div class="title">Injury Risk</div>
+<div id="injuryRisk" class="big">Low</div>
+<div class="small">Based on fatigue vs fitness</div>
+</div>
+
+<div class="card">
+<div class="title">Mileage Trend</div>
+<div id="mileageChart" class="chart"></div>
+</div>
+
+<div class="card">
+<div class="title">Connections</div>
+<div class="button secondary" onclick="connectStrava()">Connect Strava</div>
+<div class="small">Garmin → Strava → RunCoach</div>
+</div>
+
+</div>
+
+<!-- LOG RUN -->
+<div id="logScreen" class="container hidden">
+<div class="card">
+<div class="big">Log Run</div>
+
+<label>Distance (km)</label>
+<input id="runDistance" type="number">
+
+<label>Time (minutes)</label>
+<input id="runTime" type="number">
+
+<label>Average Heart Rate</label>
+<input id="runHR" type="number">
+
+<div class="button" onclick="saveRun()">Save Run</div>
+</div>
+</div>
+
+<!-- PLAN -->
+<div id="calendar" class="container hidden">
+<div class="card">
+<div class="big">Weekly Training Plan</div>
+<div id="calendarRuns"></div>
+</div>
+</div>
+
+<!-- ANALYTICS -->
+<div id="progressScreen" class="container hidden">
+<div class="card">
+<div class="big">Training Analytics</div>
+<div class="small">Fatigue & fitness trends</div>
+<div id="fatigueChart" class="chart"></div>
+</div>
+</div>
+
+<div class="nav">
+<div onclick="showScreen('dashboard')">Home</div>
+<div onclick="showScreen('calendar')">Plan</div>
+<div onclick="showScreen('logScreen')">Log</div>
+<div onclick="showScreen('progressScreen')">Stats</div>
+</div>
+
+<script>
+
+let trainingPlan=[]
+let completedKm=0
+let weeklyTarget=0
+let runHistory=[]
+
+function saveSetup(){
+
+const mileage=parseFloat(document.getElementById('weeklyMileage').value)
+const goal=document.getElementById('goalDistance').value
+const raceDate=new Date(document.getElementById('raceDate').value)
+
+weeklyTarget=Math.round(mileage*1.08)
+
+trainingPlan=[
+"Easy Run",
+"VO2 Intervals",
+"Recovery Run",
+"Tempo Run",
+"Easy Run",
+"Rest",
+"Long Run " + Math.round(mileage*0.35) + "km"
+]
+
+localStorage.setItem('plan',JSON.stringify(trainingPlan))
+localStorage.setItem('weeklyTarget',weeklyTarget)
+localStorage.setItem('raceDate',raceDate)
+localStorage.setItem('goal',goal)
+
+initDashboard()
+}
+
+function initDashboard(){
+
+document.getElementById('setup').classList.add('hidden')
+document.getElementById('dashboard').classList.remove('hidden')
+
+trainingPlan=JSON.parse(localStorage.getItem('plan'))
+weeklyTarget=parseFloat(localStorage.getItem('weeklyTarget'))
+
+let goal=localStorage.getItem('goal')
+
+document.getElementById('goalDisplay').innerText=goal
+
+updateCountdown()
+renderRuns()
+updateProgress()
+renderCharts()
+
+}
+
+function updateCountdown(){
+
+const raceDate=new Date(localStorage.getItem('raceDate'))
+const today=new Date()
+const diff=Math.ceil((raceDate-today)/(1000*60*60*24))
+
+let text=diff+" days until race"
+
+if(diff<21){
+text+=" (Taper phase)"
+}
+
+
+document.getElementById('raceCountdown').innerText=text
+
+}
+
+function renderRuns(){
+
+const planContainer=document.getElementById('calendarRuns')
+planContainer.innerHTML=""
+
+trainingPlan.forEach((run,i)=>{
+
+let row=document.createElement('div')
+row.className='run'
+row.innerHTML=`<span>Day ${i+1}</span><span>${run}</span>`
+
+planContainer.appendChild(row)
+
+})
+
+}
+
+function logRun(){showScreen('logScreen')}
+
+function saveRun(){
+
+const dist=parseFloat(document.getElementById('runDistance').value)
+const time=parseFloat(document.getElementById('runTime').value)
+
+completedKm+=dist
+
+runHistory.push({dist,time})
+
+updateTrainingLoad(dist)
+predictRace()
+adaptPlan(dist)
+updateProgress()
+renderCharts()
+checkInjuryRisk()
+
+showScreen('dashboard')
+
+}
+
+function updateProgress(){
+
+const percent=(completedKm/weeklyTarget)*100
+
+
+document.getElementById('weeklyText').innerText=`${completedKm} / ${weeklyTarget} km`
+
+document.getElementById('progressBar').style.width=percent+"%"
+
+}
+
+function updateTrainingLoad(dist){
+
+let fitness=parseInt(document.getElementById('fitness').innerText)
+let fatigue=parseInt(document.getElementById('fatigue').innerText)
+
+fitness+=Math.round(dist*0.25)
+fatigue+=Math.round(dist*0.5)
+
+let form=fitness-fatigue
+
+
+document.getElementById('fitness').innerText=fitness
+
+document.getElementById('fatigue').innerText=fatigue
+
+document.getElementById('form').innerText=form
+
+}
+
+function checkInjuryRisk(){
+
+let fitness=parseInt(document.getElementById('fitness').innerText)
+let fatigue=parseInt(document.getElementById('fatigue').innerText)
+
+let risk="Low"
+
+if(fatigue-fitness>20){risk="High"}
+else if(fatigue>fitness){risk="Moderate"}
+
+
+document.getElementById('injuryRisk').innerText=risk
+
+}
+
+function predictRace(){
+
+if(runHistory.length===0) return
+
+let last=runHistory[runHistory.length-1]
+
+let pace=last.time/last.dist
+
+let hm=pace*21.1
+let k10=pace*10
+let k5=pace*5
+
+let min=Math.floor(hm)
+let sec=Math.round((hm-min)*60)
+
+
+document.getElementById('prediction').innerText=`HM ${min}:${sec}`
+
+}
+
+function adaptPlan(dist){
+
+if(dist>18){
+trainingPlan[1]="Recovery Run"
+}
+
+}
+
+function renderCharts(){
+
+const chart=document.getElementById('mileageChart')
+chart.innerHTML=""
+
+let data=[6,8,10,12,14,completedKm]
+
+for(let v of data){
+let bar=document.createElement('div')
+bar.className='bar'
+bar.style.height=(v*5)+"px"
+chart.appendChild(bar)
+}
+
+}
+
+function showScreen(id){
+
+['dashboard','logScreen','calendar','progressScreen'].forEach(s=>{
+let el=document.getElementById(s)
+if(el) el.classList.add('hidden')
+})
+
+let el=document.getElementById(id)
+if(el) el.classList.remove('hidden')
+
+}
+
+function connectStrava(){
+alert("To enable Strava sync: create a Strava developer app and add OAuth.")
+}
+
+if(localStorage.getItem('plan')){
+initDashboard()
+}
+
+</script>
+
+</body>
+</html>
